@@ -1,0 +1,34 @@
+{
+  "name": "Telegram Forward Bot",
+  "description": "Force Join, Forward to Admin, Broadcast, /info",
+  "repository": "https://github.com/Asifxqueen/telegram-forward-bot",
+  "logo": "https://telegram.org/img/t_logo.png",
+  "keywords": [
+    "telegram",
+    "bot",
+    "forward",
+    "heroku"
+  ],
+  "env": {
+    "BOT_TOKEN": {
+      "description": "Your Telegram Bot Token from @BotFather",
+      "required": true
+    },
+    "API_ID": {
+      "description": "Your Telegram API ID from https://my.telegram.org",
+      "required": true
+    },
+    "API_HASH": {
+      "description": "Your Telegram API HASH",
+      "required": true
+    },
+    "ADMIN_ID": {
+      "description": "Your Telegram User ID to receive forwards",
+      "required": true
+    },
+    "FORCE_CHANNEL": {
+      "description": "Your channel username with @",
+      "required": true
+    }
+  }
+}
