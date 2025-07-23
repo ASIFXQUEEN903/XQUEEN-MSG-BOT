@@ -16,7 +16,10 @@ FORCE_CHANNEL = os.getenv("FORCE_CHANNEL")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ✅ Channel join check
+# 🔁 Global mapping of owner message_id to user_id
+user_message_map = {}
+
+# ✅ Check if user joined channel
 async def check_joined(user_id, context):
     try:
         member = await context.bot.get_chat_member(FORCE_CHANNEL, user_id)
@@ -24,7 +27,7 @@ async def check_joined(user_id, context):
     except:
         return False
 
-# ✅ /start
+# ✅ /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     joined = await check_joined(user_id, context)
@@ -36,7 +39,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Send any message or file, it will be sent to the owner.")
     context.application.user_data.setdefault("users", set()).add(user_id)
 
-# ✅ Relay user message to owner
+# ✅ Relay user messages to owner
 async def relay_user_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     joined = await check_joined(user.id, context)
@@ -71,19 +74,19 @@ async def relay_user_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if sent_msg:
-        context.application.chat_data[sent_msg.message_id] = user.id
+        user_message_map[sent_msg.message_id] = user.id
         await update.message.reply_text("✅ Your message has been sent to the owner.")
 
-# ✅ Owner reply handler
+# ✅ Handle owner reply
 async def handle_owner_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
-        return  # Ignore non-admins
+        return
 
     reply_to = update.message.reply_to_message
     if not reply_to:
         return
 
-    user_id = context.application.chat_data.get(reply_to.message_id)
+    user_id = user_message_map.get(reply_to.message_id)
     if not user_id:
         await update.message.reply_text("⚠️ Could not find user to reply.")
         return
@@ -129,7 +132,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("❗ Use: `/broadcast your message here`", parse_mode="Markdown")
 
-# ✅ Main
+# ✅ Start app
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
