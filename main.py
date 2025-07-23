@@ -16,7 +16,7 @@ FORCE_CHANNEL = os.getenv("FORCE_CHANNEL")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Check if user joined force channel
+# ✅ Channel join check
 async def check_joined(user_id, context):
     try:
         member = await context.bot.get_chat_member(FORCE_CHANNEL, user_id)
@@ -24,7 +24,7 @@ async def check_joined(user_id, context):
     except:
         return False
 
-# /start command
+# ✅ /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     joined = await check_joined(user_id, context)
@@ -33,57 +33,51 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🚫 You must join {FORCE_CHANNEL} to use this bot.\n\n👉 Join and then press /start again."
         )
         return
-    await update.message.reply_text("✅ Send me any message, photo, or file.\nYour message will be sent to the bot owner.")
-    users = context.application.user_data.setdefault("users", set())
-    users.add(user_id)
+    await update.message.reply_text("✅ Send any message or file, it will be sent to the owner.")
+    context.application.user_data.setdefault("users", set()).add(user_id)
 
-# Handle user messages and relay to owner
+# ✅ Relay user message to owner
 async def relay_user_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     joined = await check_joined(user.id, context)
     if not joined:
-        await update.message.reply_text(
-            f"⚠️ Please join {FORCE_CHANNEL} and try again."
-        )
+        await update.message.reply_text(f"⚠️ Please join {FORCE_CHANNEL} and try again.")
         return
 
-    # Format header
+    msg: Message = update.message
     header = f"📩 Message from [{user.first_name}](tg://user?id={user.id})"
     header += f"\n🆔 ID: `{user.id}`"
     if user.username:
         header += f"\n👤 Username: @{user.username}"
-    header += "\n\n📝 Message:\n"
+    header += f"\n\n📝 Message:\n{msg.text or msg.caption or ''}"
 
-    # Send message or media with header
-    msg: Message = update.message
     sent_msg = None
     try:
         if msg.text:
-            sent_msg = await context.bot.send_message(ADMIN_ID, header + msg.text, parse_mode="Markdown")
+            sent_msg = await context.bot.send_message(ADMIN_ID, header, parse_mode="Markdown")
         elif msg.photo:
-            sent_msg = await context.bot.send_photo(ADMIN_ID, photo=msg.photo[-1].file_id, caption=header + (msg.caption or ""), parse_mode="Markdown")
+            sent_msg = await context.bot.send_photo(ADMIN_ID, photo=msg.photo[-1].file_id, caption=header, parse_mode="Markdown")
         elif msg.document:
-            sent_msg = await context.bot.send_document(ADMIN_ID, document=msg.document.file_id, caption=header + (msg.caption or ""), parse_mode="Markdown")
+            sent_msg = await context.bot.send_document(ADMIN_ID, document=msg.document.file_id, caption=header, parse_mode="Markdown")
         elif msg.video:
-            sent_msg = await context.bot.send_video(ADMIN_ID, video=msg.video.file_id, caption=header + (msg.caption or ""), parse_mode="Markdown")
+            sent_msg = await context.bot.send_video(ADMIN_ID, video=msg.video.file_id, caption=header, parse_mode="Markdown")
         elif msg.audio:
-            sent_msg = await context.bot.send_audio(ADMIN_ID, audio=msg.audio.file_id, caption=header + (msg.caption or ""), parse_mode="Markdown")
+            sent_msg = await context.bot.send_audio(ADMIN_ID, audio=msg.audio.file_id, caption=header, parse_mode="Markdown")
         else:
-            await context.bot.send_message(ADMIN_ID, header + "📎 [Unsupported content]")
+            await context.bot.send_message(ADMIN_ID, header + "\n⚠️ Unsupported content type")
     except Exception as e:
         logger.error(f"Relay error: {e}")
-        await update.message.reply_text("❌ Failed to send message to owner.")
+        await update.message.reply_text("❌ Failed to send to owner.")
         return
 
-    # Save mapping to reply back later
     if sent_msg:
         context.application.chat_data[sent_msg.message_id] = user.id
         await update.message.reply_text("✅ Your message has been sent to the owner.")
 
-# Owner reply — sends message back to original user
+# ✅ Owner reply handler
 async def handle_owner_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
-        return  # ignore if not owner
+        return  # Ignore non-admins
 
     reply_to = update.message.reply_to_message
     if not reply_to:
@@ -91,7 +85,7 @@ async def handle_owner_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     user_id = context.application.chat_data.get(reply_to.message_id)
     if not user_id:
-        await update.message.reply_text("⚠️ Cannot find user to reply.")
+        await update.message.reply_text("⚠️ Could not find user to reply.")
         return
 
     try:
@@ -107,10 +101,10 @@ async def handle_owner_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif msg.audio:
             await context.bot.send_audio(user_id, audio=msg.audio.file_id, caption=msg.caption or "")
     except Exception as e:
-        logger.error(f"Failed to reply to user: {e}")
-        await update.message.reply_text("❌ Failed to send reply.")
+        logger.error(f"Reply send failed: {e}")
+        await update.message.reply_text("❌ Could not send reply to user.")
 
-# /info command
+# ✅ /info command
 async def user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await update.message.reply_text(
@@ -118,10 +112,10 @@ async def user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-# /broadcast by admin
+# ✅ /broadcast command
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
-        return await update.message.reply_text("🚫 Only admin can broadcast.")
+        return await update.message.reply_text("🚫 Only owner can broadcast.")
     if context.args:
         text = " ".join(context.args)
         sent = 0
@@ -135,7 +129,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("❗ Use: `/broadcast your message here`", parse_mode="Markdown")
 
-# Main function
+# ✅ Main
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
